@@ -77,6 +77,7 @@ export class RadioBase extends FormElement {
     this.requestUpdate('checked', oldValue);
 
     // useful when unchecks self and wrapping element needs to synchronize
+    // TODO(b/168543810): Remove triggering event on programmatic API call.
     this.dispatchEvent(new Event('checked', {bubbles: true, composed: true}));
   }
 
@@ -143,6 +144,17 @@ export class RadioBase extends FormElement {
 
   connectedCallback() {
     super.connectedCallback();
+
+    // TODO(b/168546148): Remove this once new base class is created without
+    // single selection controller.
+    this.registerSingleSelectionController();
+  }
+
+  async registerSingleSelectionController() {
+    // Component maybe booted up after it is connected to DOM, wait till update
+    // is complete so that properties are initialized.
+    await this.updateComplete;
+
     // Note that we must defer creating the selection controller until the
     // element has connected, because selection controllers are keyed by the
     // radio's shadow root. For example, if we're stamping in a lit-html map
@@ -165,9 +177,11 @@ export class RadioBase extends FormElement {
   disconnectedCallback() {
     // The controller is initialized in connectedCallback, so if we are in
     // disconnectedCallback then it must be initialized.
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    this._selectionController!.unregister(this);
-    this._selectionController = undefined;
+    if (this._selectionController !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      this._selectionController!.unregister(this);
+      this._selectionController = undefined;
+    }
   }
 
   focus() {
